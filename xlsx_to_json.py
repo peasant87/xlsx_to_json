@@ -83,28 +83,52 @@ def new_product_config(product_config):
         try:
             product_config_attributes['description'] = ast.literal_eval(config.get('description'))
         except: 
-            print("Bad formed JSON field: ",'description')
+            print('''
+### ERROR ###
+Product_config_id: {}
+Bad formed JSON field: 'description'
+            '''.format(key))
 
         product_config_attributes['supplier_color'] = config.get('supplier_color')
-        product_config_attributes['fabric_definition'] = [config.get('fabric_definition')]
+        try:
+            product_config_attributes['fabric_definition'] = [ast.\
+                literal_eval(config.get('fabric_definition'))]
+        except: 
+            print('''
+### ERROR ###
+Product_config_id: {}
+Bad formed JSON field: 'fabric_definition'
+            '''.format(key))
         
         try:
             product_config_attributes['material.upper_material_clothing'] = \
                 list(ast.literal_eval(config.get('material.upper_material_clothing')))
         except: 
-            print("Bad formed JSON field: ",'material.upper_material_clothing')
+            print('''
+### ERROR ###
+Product_config_id: {}
+Bad formed JSON field: 'material.upper_material_clothing'
+            '''.format(key))
 
         try:
             product_config_attributes['material.futter_clothing'] = \
                 list(ast.literal_eval(config.get('material.futter_clothing')))
         except: 
-            print("Bad formed JSON field: ",'material.futter_clothing')
+            print('''
+### ERROR ###
+Product_config_id: {}
+Bad formed JSON field: 'material.futter_clothing')
+            '''.format(key))
 
         try:
             product_config_attributes['material.upper_material_top'] = \
                 list(ast.literal_eval(config.get('material.upper_material_top')))
         except: 
-            print("Bad formed JSON field: ",'material.upper_material_top')
+            print('''
+### ERROR ###
+Product_config_id: {}
+Bad formed JSON field: 'material.upper_material_top')
+            '''.format(key))
 
         product_config_attributes['media'] = config.get('media')
         product_config_attributes['season_code'] = config.get('season_code')
