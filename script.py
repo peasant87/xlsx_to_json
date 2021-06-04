@@ -36,6 +36,9 @@ def media_simple_dict(product_config_dict,list_sheets):
 def set_index(index_name,list_sheets):
     return [list_sheets[2].set_index([index_name]),list_sheets[3].set_index([index_name])]
 
+def create_json(products_dicts):
+    pass
+
 sheets = pd.ExcelFile("./shoe.xlsx")
 
 list_sheets = []
