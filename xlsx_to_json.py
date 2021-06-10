@@ -13,32 +13,50 @@ SIMPLE_ID = 'merchant_product_simple_id'
 def prepare_product_dict(product_model_dict, list_sheets):
     for model in product_model_dict:
         product_config_dict = prepare_config_dict(model,list_sheets)
-
-        product_config_dict = prepare_media_simple_dict(product_config_dict,list_sheets)
+        
+        if(product_config_dict):
+            product_config_dict = prepare_media_simple_dict(product_config_dict,list_sheets)
             
         product_model_dict[model]['product_config'] = product_config_dict
     return product_model_dict
 
 def prepare_config_dict(model_id,list_sheets):
-    product_config = list_sheets[1].set_index(MODEL_ID).loc[model_id]
-    product_config_dict = product_config.set_index(CONFIG_ID).to_dict(orient='index')
+    product_config_indexed = list_sheets[1].set_index(MODEL_ID)
+    if(model_id in product_config_indexed.index):
+        product_config = product_config_indexed.loc[model_id]
+        if(isinstance(product_config,pd.DataFrame)):
+            product_config_dict = product_config.set_index(CONFIG_ID).to_dict(orient='index')
+        elif(isinstance(product_config,pd.Series)):
+            product_config_dict = product_config.to_frame().T.set_index(CONFIG_ID).to_dict(orient='index')
+    else:
+        product_config_dict = {}
+
+    #product_config = list_sheets[1].set_index(MODEL_ID).loc[model_id]
+    #product_config_dict = product_config.set_index(CONFIG_ID).to_dict(orient='index')
     return product_config_dict
 
 def prepare_media_simple_dict(product_config_dict,list_sheets):
     media_df, product_simple_df = set_index(CONFIG_ID,list_sheets)
     
     for config in product_config_dict:
-        df = media_df.loc[config]
-        media_dict = df[df.columns[2:]].to_dict(orient='records')
-        
-        df = product_simple_df.loc[config]
-        product_simple_dict = df.set_index(SIMPLE_ID).to_dict(orient='index')
-        
-        product_config_dict[config]['media'] = media_dict
-        product_config_dict[config]['product_simple'] = product_simple_dict
-
+        if(config in media_df.index):
+            df = media_df.loc[config]
+            if(isinstance(df,pd.Series)):
+                df = df.to_frame().T
+            media_dict = df[df.columns[2:]].to_dict(orient='records')
+            product_config_dict[config]['media'] = media_dict
+        else:
+            product_config_dict[config]['media'] = []
+            
+        if(config in product_simple_df.index):
+            df = product_simple_df.loc[config]
+            if(isinstance(df,pd.Series)):
+                df = df.to_frame().T
+            product_simple_dict = df.set_index(SIMPLE_ID).to_dict(orient='index')
+            product_config_dict[config]['product_simple'] = product_simple_dict
+        else:
+            product_config_dict[config]['product_simple'] = []   
     return product_config_dict
-
 
 def set_index(index_name,list_sheets):
     return [list_sheets[2].set_index([index_name]),list_sheets[3].set_index([index_name])]
@@ -68,7 +86,7 @@ def save_json(product_dict,id):
     filename = "./output_json/{}_{}.json".format(product_dict['outline'],id)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as outfile:
-        json.dump(product_dict, outfile, indent=4)
+        json.dump(str(product_dict), outfile, indent=4)
     print("Saved JSON file at: ",filename)
 
 def new_product_config(product_config):
