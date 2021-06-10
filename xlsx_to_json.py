@@ -3,6 +3,7 @@
 import sys
 import os
 import pandas as pd
+import numpy as np
 import ast
 import json
 
@@ -31,8 +32,6 @@ def prepare_config_dict(model_id,list_sheets):
     else:
         product_config_dict = {}
 
-    #product_config = list_sheets[1].set_index(MODEL_ID).loc[model_id]
-    #product_config_dict = product_config.set_index(CONFIG_ID).to_dict(orient='index')
     return product_config_dict
 
 def prepare_media_simple_dict(product_config_dict,list_sheets):
@@ -81,12 +80,23 @@ def create_product_json(products_dicts):
             
         product_model['product_configs'] = new_product_config(product_config)
         save_json(product_dict,product_id)
-        
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NpEncoder, self).default(obj)
+
 def save_json(product_dict,id):
     filename = "./output_json/{}_{}.json".format(product_dict['outline'],id)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as outfile:
-        json.dump(str(product_dict), outfile, indent=4)
+        json.dump(product_dict, outfile, indent=4, cls=NpEncoder,ensure_ascii=False)
     print("Saved JSON file at: ",filename)
 
 def new_product_config(product_config):
@@ -101,52 +111,35 @@ def new_product_config(product_config):
         try:
             product_config_attributes['description'] = ast.literal_eval(config.get('description'))
         except: 
-            print('''
-### ERROR ###
-Product_config_id: {}
-Bad formed JSON field: 'description'
-            '''.format(key))
+            print(error_message(key,'description'))
 
         product_config_attributes['supplier_color'] = config.get('supplier_color')
         try:
-            product_config_attributes['fabric_definition'] = [ast.\
+            fabric_definitions = [ast.\
                 literal_eval(config.get('fabric_definition'))]
         except: 
-            print('''
-### ERROR ###
-Product_config_id: {}
-Bad formed JSON field: 'fabric_definition'
-            '''.format(key))
+            fabric_definitions = config.get('fabric_definition')
+            print(error_message(key,'fabric_definition'))
+        finally:
+            product_config_attributes['fabric_definition'] = [fabric_definitions]
         
         try:
             product_config_attributes['material.upper_material_clothing'] = \
                 list(ast.literal_eval(config.get('material.upper_material_clothing')))
         except: 
-            print('''
-### ERROR ###
-Product_config_id: {}
-Bad formed JSON field: 'material.upper_material_clothing'
-            '''.format(key))
+            print(error_message(key,'material.upper_material_clothing'))
 
         try:
             product_config_attributes['material.futter_clothing'] = \
                 list(ast.literal_eval(config.get('material.futter_clothing')))
         except: 
-            print('''
-### ERROR ###
-Product_config_id: {}
-Bad formed JSON field: 'material.futter_clothing')
-            '''.format(key))
+            print(error_message(key,'material.futter_clothing'))
 
         try:
             product_config_attributes['material.upper_material_top'] = \
                 list(ast.literal_eval(config.get('material.upper_material_top')))
         except: 
-            print('''
-### ERROR ###
-Product_config_id: {}
-Bad formed JSON field: 'material.upper_material_top')
-            '''.format(key))
+            print(error_message(key,'material.upper_material_top'))
 
         product_config_attributes['media'] = config.get('media')
         product_config_attributes['season_code'] = config.get('season_code')
@@ -165,6 +158,14 @@ Bad formed JSON field: 'material.upper_material_top')
         product_config_list.append(new_product_config)
     return product_config_list
 
+def error_message(key,field):
+    return '''
+### WARNING ###
+Product_config_id: {}
+Bad formed JSON field: {}
+Orientation: this field must be in JSON format
+'''.format(key,field)
+
 def new_product_simple(product_simple):
     product_simple_list = []
     for ps in product_simple:
@@ -180,6 +181,18 @@ def new_product_simple(product_simple):
         product_simple_list.append(new_product_simple)
     return product_simple_list
 
+def sheet_preprocesssing(sheet):
+    df = pd.read_excel(file,sheet_name=sheet)
+
+    #removing collumns with no name
+    cols = df.columns[~df.columns.str.startswith('Unnamed:')]
+    df = df[cols]
+    
+    #removing 'nan' values and replacing with empty string ('')
+    df.fillna('',inplace=True)
+
+    return df
+
 file = sys.argv[1]
 
 print("Reading file: ",file)
@@ -189,7 +202,8 @@ list_sheets = []
 print("Reading sheets...")
 for sheet in sheets.sheet_names:
     print("Found sheet: ",sheet)
-    list_sheets.append(pd.read_excel(file,sheet_name=sheet))
+    df = sheet_preprocesssing(sheet)
+    list_sheets.append(df)
 
 product_model_dict = list_sheets[0].set_index(MODEL_ID).to_dict(orient='index')
 print("Preparing file...")
