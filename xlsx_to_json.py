@@ -114,15 +114,9 @@ def new_product_config(product_config):
             print(error_message(key,'description'))
 
         product_config_attributes['supplier_color'] = config.get('supplier_color')
-        try:
-            fabric_definitions = [ast.\
-                literal_eval(config.get('fabric_definition'))]
-        except: 
-            fabric_definitions = config.get('fabric_definition')
-            print(error_message(key,'fabric_definition'))
-        finally:
-            product_config_attributes['fabric_definition'] = [fabric_definitions]
-        
+
+        product_config_attributes['fabric_definition'] = config.get('fabric_definition')
+ 
         try:
             product_config_attributes['material.upper_material_clothing'] = \
                 list(ast.literal_eval(config.get('material.upper_material_clothing')))
