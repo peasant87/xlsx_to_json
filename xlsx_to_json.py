@@ -179,7 +179,7 @@ def sheet_preprocesssing(sheet):
     df = pd.read_excel(file,sheet_name=sheet)
 
     #removing collumns with no name
-    cols = df.columns[~df.columns.str.startswith('Unnamed:')]
+    cols = df.columns[~df.columns.str.startswith(('Unnamed:',"#"))]
     df = df[cols]
     
     #removing 'nan' values and replacing with empty string ('')
