@@ -11,6 +11,10 @@ MODEL_ID = 'merchant_product_model_id'
 CONFIG_ID = 'merchant_product_config_id'
 SIMPLE_ID = 'merchant_product_simple_id'
 
+def prepare_product_model_dict(MODEL_ID, list_sheets):
+    product_model_dict = list_sheets[0].set_index(MODEL_ID,drop=False).to_dict(orient='index')#list_sheets[0].set_index(MODEL_ID).to_dict(orient='index')
+    return product_model_dict
+
 def prepare_product_dict(product_model_dict, list_sheets):
     for model in product_model_dict:
         product_config_dict = prepare_config_dict(model,list_sheets)
@@ -26,9 +30,9 @@ def prepare_config_dict(model_id,list_sheets):
     if(model_id in product_config_indexed.index):
         product_config = product_config_indexed.loc[model_id]
         if(isinstance(product_config,pd.DataFrame)):
-            product_config_dict = product_config.set_index(CONFIG_ID).to_dict(orient='index')
+            product_config_dict = product_config.set_index(CONFIG_ID,drop=False).to_dict(orient='index')
         elif(isinstance(product_config,pd.Series)):
-            product_config_dict = product_config.to_frame().T.set_index(CONFIG_ID).to_dict(orient='index')
+            product_config_dict = product_config.to_frame().T.set_index(CONFIG_ID,drop=False).to_dict(orient='index')
     else:
         product_config_dict = {}
 
@@ -51,7 +55,7 @@ def prepare_media_simple_dict(product_config_dict,list_sheets):
             df = product_simple_df.loc[config]
             if(isinstance(df,pd.Series)):
                 df = df.to_frame().T
-            product_simple_dict = df.set_index(SIMPLE_ID).to_dict(orient='index')
+            product_simple_dict = df.set_index(SIMPLE_ID,drop=False).to_dict(orient='index')
             product_config_dict[config]['product_simple'] = product_simple_dict
         else:
             product_config_dict[config]['product_simple'] = []   
@@ -60,25 +64,50 @@ def prepare_media_simple_dict(product_config_dict,list_sheets):
 def set_index(index_name,list_sheets):
     return [list_sheets[2].set_index([index_name]),list_sheets[3].set_index([index_name])]
 
-def create_product_json(products_dicts):
-    for product_id in products_dicts:
-        product_dict = {'outline':'','product_model':{}}
-        model = products_dicts[product_id]
-        product_dict['outline'] = model.pop('outline')
-        product_config = model.pop('product_config')
+def data_type_definition(index,key,value,list_dicts):
+    if list_dicts:
+        type = list_dicts[index][key]
+        if (type.lower() == 'string' or type.lower() == 'str'):
+            return str(value)
+        elif (type.lower() == 'string_list' or type.lower() == 'list_string'):
+            return value.split(',')
+        elif (type.lower() == 'number' or type.lower() == 'int'):
+            if value:
+                return int(value)
+            else:
+                return value
+        elif (type.lower() == 'json'):
+            try:
+                return ast.literal_eval(value)
+            except:
+                print(error_message(index,key,value))
+        else:
+            print(error_message(index,key,value))       
+    else:
+        try:
+            return ast.literal_eval(value)
+        except:
+            pass
+        return value
+
+def create_product_json(products_dicts,list_dicts):
+    for product_id,product in products_dicts.items():
+        product_dict = {'outline':'','product_model':{'product_model_attributes':{}}}
         
-        product_model = product_dict['product_model']
-        product_model[MODEL_ID] = product_id
-        
-        product_model_attributes = {}
-        product_model_attributes['name'] = model.get('name')
-        product_model_attributes['brand_code'] = model.get('brand_code')
-        product_model_attributes['size_group'] = {'size':model.get('size_group')}
-        product_model_attributes['target_genders'] = [model.get('target_genders')]
-        product_model_attributes['target_age_groups'] = [model.get('target_age_groups')]
-        product_model['product_model_attributes'] = product_model_attributes
-            
-        product_model['product_configs'] = new_product_config(product_config)
+        for key, value in product.items():
+            product_model = product_dict['product_model']
+            product_model_attributes = product_model['product_model_attributes']
+            if key == 'outline':
+                product_dict[key] = data_type_definition(0,key,value,list_dicts) #model.pop('outline')
+                continue
+            if "_id" in key:
+                product_dict[key] = data_type_definition(0,key,value,list_dicts) #model.pop('outline')
+                continue
+            if isinstance(value,dict):
+                product_model[key] = new_product_config(value,list_dicts)
+                continue
+            product_model_attributes[key] = data_type_definition(0,key,value,list_dicts)
+
         save_json(product_dict,product_id)
 
 class NpEncoder(json.JSONEncoder):
@@ -93,114 +122,129 @@ class NpEncoder(json.JSONEncoder):
             return super(NpEncoder, self).default(obj)
 
 def save_json(product_dict,id):
-    filename = "./output_json/{}_{}.json".format(product_dict['outline'],id)
+    outline = product_dict.get('outline') if product_dict.get('outline') else ''
+    filename = "./output_json/{}_{}.json".format(outline,id)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as outfile:
         json.dump(product_dict, outfile, indent=4, cls=NpEncoder,ensure_ascii=False)
     print("Saved JSON file at: ",filename)
 
-def new_product_config(product_config):
+def new_product_config(product_config,list_dicts):
     product_config_list = []
-    for key in product_config:
-        config = product_config[key]
-        new_product_config = {}
-        new_product_config[CONFIG_ID] = key
-        
-        product_config_attributes = {}
-        product_config_attributes['color_code.primary'] = config.get('color_code.primary')
-        try:
-            product_config_attributes['description'] = ast.literal_eval(config.get('description'))
-        except: 
-            print(error_message(key,'description'))
+    for config in product_config.values():
+        config_dict = {'product_config_attributes':{}}
+        #model = products_dicts[product_id]
+        product_config_attributes = config_dict['product_config_attributes']
+        for key, value in config.items():
+            if "_id" in key:
+                config_dict[key] = data_type_definition(1,key,value,list_dicts) #model.pop('outline')
+                continue
+            if isinstance(value,list):
+                for v in value:
+                    if isinstance(v,dict):
+                        for _k,_v in v.items():
+                            v[_k] = data_type_definition(2,_k,_v,list_dicts)
+                product_config_attributes[key] = value
+                continue
+            if isinstance(value,dict):
+                config_dict[key] = new_product_simple(value,list_dicts)
+                continue
+            product_config_attributes[key] = data_type_definition(1,key,value,list_dicts)
+        product_config_list.append(config_dict)
 
-        product_config_attributes['supplier_color'] = config.get('supplier_color')
-
-        product_config_attributes['fabric_definition'] = config.get('fabric_definition')
- 
-        try:
-            product_config_attributes['material.upper_material_clothing'] = \
-                list(ast.literal_eval(config.get('material.upper_material_clothing')))
-        except: 
-            print(error_message(key,'material.upper_material_clothing'))
-
-        try:
-            product_config_attributes['material.futter_clothing'] = \
-                list(ast.literal_eval(config.get('material.futter_clothing')))
-        except: 
-            print(error_message(key,'material.futter_clothing'))
-
-        try:
-            product_config_attributes['material.upper_material_top'] = \
-                list(ast.literal_eval(config.get('material.upper_material_top')))
-        except: 
-            print(error_message(key,'material.upper_material_top'))
-
-        product_config_attributes['media'] = config.get('media')
-        product_config_attributes['season_code'] = config.get('season_code')
-        product_config_attributes['breathable'] = [config.get('breathable')]
-        product_config_attributes['assortment_type'] = [config.get('assortment_type')]
-        product_config_attributes['occasion'] = [config.get('occasion')]
-        product_config_attributes['condition'] = config.get('condition')
-        product_config_attributes['sport_type'] = [config.get('sport_type')]
-        product_config_attributes['waterproof'] = [config.get('waterproof')]
-        product_config_attributes['washing_instructions'] = [config.get('washing_instructions')]
-        new_product_config['product_config_attributes'] = product_config_attributes
-        
-        product_simple = config.pop('product_simple')
-    
-        new_product_config['product_simples'] = new_product_simple(product_simple)   
-        product_config_list.append(new_product_config)
     return product_config_list
 
-def error_message(key,field):
+def error_message(sheet,column,value):
     return '''
 ### WARNING ###
-Product_config_id: {}
-Bad formed JSON field: {}
-Orientation: this field must be in JSON format
-'''.format(key,field)
+Wrong type informed!
+Sheet: {}
+Column: {}
+Value: {}
 
-def new_product_simple(product_simple):
+    The type must be string, json, string_list or number
+'''.format(sheet,column,value)
+
+def error_message_header(header_length):
+    return '''
+### ERROR ###
+Invalid header length: {}
+Orientation: Insert a valid header length
+'''.format(header_length)
+
+def new_product_simple(product_simple,list_dicts):
     product_simple_list = []
-    for ps in product_simple:
-        simple = product_simple[ps]
-        new_product_simple = {}
-        new_product_simple[SIMPLE_ID] = ps
+    for simple in product_simple.values():
+        simple_dict = {'product_simple_attributes':{}}
         
-        product_simple_attributes = {}
-        product_simple_attributes['ean'] = str(simple.get('ean'))
-        product_simple_attributes['size_codes'] = {'size':simple.get('size_codes')}
-        
-        new_product_simple['product_simple_attributes'] = product_simple_attributes
-        product_simple_list.append(new_product_simple)
+        for key,value in simple.items():
+            product_simple_attributes = simple_dict['product_simple_attributes']
+            if "_id" in key:
+                simple_dict[key] = data_type_definition(3,key,value,list_dicts) #model.pop('outline')
+                continue
+            product_simple_attributes[key] = data_type_definition(3,key,value,list_dicts)
+        product_simple_list.append(simple_dict)
+
     return product_simple_list
 
-def sheet_preprocesssing(sheet):
-    df = pd.read_excel(file,sheet_name=sheet)
+def validate_header(header_length):
+    try:
+        int(header_length)
+    except:
+        error_message_header(header_length)
 
-    #removing collumns with no name
+def sheet_preprocessing(file, sheet, header_length=0):
+    validate_header(header_length)
+    dict_index = {}
+    #TODO: improve with read_excel, sheet_name=None
+    df = pd.read_excel(file,sheet_name=sheet)
+        
+    #removing unnamed and comment columns
     cols = df.columns[~df.columns.str.startswith(('Unnamed:',"#"))]
     df = df[cols]
-    
+
+    if(header_length):
+        #save data type into dict
+        dict_index = data_type_dict(df)
+        df = df.drop(0).reset_index(drop=True)
+
     #removing 'nan' values and replacing with empty string ('')
     df.fillna('',inplace=True)
 
-    return df
+    return df,dict_index
 
+def data_type_dict(df):
+    columns = df.columns
+    data_types = list(df.iloc[0])
+    if (len(columns) == len(data_types)):
+        return dict(zip(columns,data_types))
+    else:
+        raise Exception('Error in datatype rows')
+
+#TODO: improve with argparse
 file = sys.argv[1]
+if len(sys.argv) > 2:
+    header_length = sys.argv[2]
+else: 
+    header_length = 0
 
 print("Reading file: ",file)
 sheets = pd.ExcelFile(file)
 
 list_sheets = []
+list_dicts = []
 print("Reading sheets...")
 for sheet in sheets.sheet_names:
     print("Found sheet: ",sheet)
-    df = sheet_preprocesssing(sheet)
+    df,dict_index = sheet_preprocessing(file, sheet, header_length)
+    
+    if(dict_index):
+        list_dicts.append(dict_index)
+
     list_sheets.append(df)
 
-product_model_dict = list_sheets[0].set_index(MODEL_ID).to_dict(orient='index')
 print("Preparing file...")
+product_model_dict = prepare_product_model_dict(MODEL_ID, list_sheets)
 final_dict = prepare_product_dict(product_model_dict,list_sheets)
 print("Creating JSON file...")
-create_product_json(final_dict)
+create_product_json(final_dict,list_dicts)
