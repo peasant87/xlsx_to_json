@@ -100,12 +100,13 @@ def data_type_definition(sheet_name,key,value,dict_data_types):
 
 def create_product_json(products_dicts,dict_data_types):
     sheet_name = next(iter(dict_data_types.keys()))
-    attributes = sheet_name+'_attributes'
+    json_name = sheet_name[:-1]
+    attributes = json_name+'_attributes'
     data_types = dict_data_types.pop(sheet_name)
-    product_dict = {'outline':'',sheet_name:{attributes:{}}}
+    product_dict = {'outline':'',json_name:{attributes:{}}}
     for product_id,product in products_dicts.items():        
         for key, value in product.items():
-            product_model = product_dict[sheet_name]
+            product_model = product_dict[json_name]
             product_model_attributes = product_model[attributes]
             if key == 'outline':
                 product_dict[key] = data_type_definition(sheet_name,key,value,data_types) #model.pop('outline')
@@ -146,7 +147,6 @@ def new_product_config(product_config,dict_data_types):
     data_types = dict_data_types.pop(sheet_name)
     for config in product_config.values():
         config_dict = {attributes:{}}
-        #model = products_dicts[product_id]
         product_config_attributes = config_dict[attributes]
         for key, value in config.items():
             if "_id" in key:
