@@ -7,6 +7,7 @@ import numpy as np
 import ast
 import json
 from collections import OrderedDict
+from datetime import datetime
 
 MODEL_ID = 'merchant_product_model_id'
 CONFIG_ID = 'merchant_product_config_id'
@@ -134,7 +135,8 @@ class NpEncoder(json.JSONEncoder):
 
 def save_json(product_dict,id):
     outline = product_dict.get('outline') if product_dict.get('outline') else ''
-    filename = "./output_json/{}_{}.json".format(outline,id)
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    filename = "./output_json/{}/{}_{}.json".format(timestamp,outline,id)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as outfile:
         json.dump(product_dict, outfile, indent=4, cls=NpEncoder,ensure_ascii=False)
