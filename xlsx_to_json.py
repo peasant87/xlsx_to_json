@@ -65,33 +65,34 @@ def prepare_config_childs(product_config_dict,dfs,sheets_names):
 
 def data_type_definition(sheet_name,key,value,dict_data_types):
     if dict_data_types:
-        type = dict_data_types.get(key)
-        if type:
-            if (type.lower() == 'string' or type.lower() == 'str'):
+        _type = dict_data_types.get(key)
+        if _type:
+            if (_type.lower() == 'string' or _type.lower() == 'str'):
                 return str(value)
-            elif (type.lower() == 'string_list' or type.lower() == 'list_string'):
+            elif (_type.lower() == 'string_list' or _type.lower() == 'list_string'):
                 return value.split(',')
-            elif (type.lower() == 'number' or type.lower() == 'int'):
+            elif (_type.lower() == 'number' or _type.lower() == 'int'):
                 try:
                     if value:
                         return int(value)
                     else:
                         return value
                 except:
-                    print(error_message(sheet_name,key,type,value))
+                    print(error_message(sheet_name,key,_type,value))
                     sys.exit(1)
-            elif (type.lower() == 'json'):
+            elif (_type.lower() == 'json'):
                 try:
                     return ast.literal_eval(value)
                 except:
-                    print(error_message(sheet_name,key,type,value))
+                    print(error_message(sheet_name,key,_type,value))
                     sys.exit(1)
             else:
-                print(error_message(sheet_name,key,type,value))       
+                print(error_message(sheet_name,key,_type,value))       
                 sys.exit(1)
         else:    
-            print(error_message(sheet_name,key,type,value))       
-            sys.exit(1)
+            print(warning_message(sheet_name,key,_type,value))       
+            #sys.exit(1)
+            return str(value)
     else:
         try:
             return ast.literal_eval(value)
@@ -171,6 +172,17 @@ def new_product_config(product_config,dict_data_types):
 
     return product_config_list
 
+def warning_message(sheet,column,type,value):
+    return '''
+### WARNING ###
+Verify the type informed!
+Sheet: {}
+Column: {}
+Informed type: {}
+Cell contents: {}
+'''.format(sheet,column,type,value)
+
+
 def error_message(sheet,column,type,value):
     return '''
 ### ERROR ###
@@ -233,6 +245,7 @@ def sheet_preprocessing(file, sheet, header_length=0):
     if(header_length):
         #save data type into dict
         for sheet_name,sheet in df_dict.items():
+            sheet.fillna('',inplace=True)
             dict_index[sheet_name] = data_type_dict(sheet)
             df_dict[sheet_name] = sheet.drop(0).reset_index(drop=True)
     else:
