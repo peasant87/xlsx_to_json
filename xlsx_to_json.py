@@ -114,7 +114,8 @@ def create_product_json(products_dicts,dict_data_types):
                 product_dict[key] = data_type_definition(sheet_name,key,value,data_types) #model.pop('outline')
                 continue
             if "_id" in key:
-                product_dict[key] = data_type_definition(sheet_name,key,value,data_types) #model.pop('outline')
+                #product_dict[key] = data_type_definition(sheet_name,key,value,data_types) #model.pop('outline')
+                product_model[key] = data_type_definition(sheet_name,key,value,data_types) #model.pop('outline')
                 continue
             if isinstance(value,dict):
                 product_model[key] = new_product_config(value,dict_data_types.copy())
@@ -136,7 +137,7 @@ class NpEncoder(json.JSONEncoder):
 
 def save_json(product_dict,id):
     outline = product_dict.get('outline') if product_dict.get('outline') else ''
-    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M')
     filename = "./output_json/{}/{}_{}.json".format(timestamp,outline,id)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as outfile:
@@ -205,7 +206,7 @@ Orientation: Insert a valid header length
 def new_product_simple(product_simple,dict_data_types):
     product_simple_list = []
     sheet_name = list(dict_data_types)[-1]
-    attributes = sheet_name+'_attributes'
+    attributes = 'product_simple_attributes'
     data_types = dict_data_types.get(sheet_name)
     for simple in product_simple.values():
         simple_dict = {attributes:{}}
