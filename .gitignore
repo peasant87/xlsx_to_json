@@ -4,3 +4,4 @@
 output_json/
 product_structure.png
 *.xlsx
+.DS_Store

@@ -157,7 +157,7 @@ def new_product_config(product_config,dict_data_types):
                 config_dict[key] = data_type_definition(sheet_name,key,value,data_types) #model.pop('outline')
                 continue
             if isinstance(value,list):
-                _sheet_name = list(dict_data_types)[0]
+                _sheet_name = list(dict_data_types)[-1]
                 _data_types = dict_data_types.get(_sheet_name)
                 for v in value:
                     if isinstance(v,dict):
@@ -205,7 +205,7 @@ Orientation: Insert a valid header length
 
 def new_product_simple(product_simple,dict_data_types):
     product_simple_list = []
-    sheet_name = list(dict_data_types)[-1]
+    sheet_name = next(iter(dict_data_types.keys()))#list(dict_data_types)[-1]
     attributes = 'product_simple_attributes'
     data_types = dict_data_types.get(sheet_name)
     for simple in product_simple.values():
