@@ -69,8 +69,15 @@ def data_type_definition(sheet_name,key,value,dict_data_types):
         if _type:
             if (_type.lower() == 'string' or _type.lower() == 'str'):
                 return str(value)
-            elif (_type.lower() == 'string_list' or _type.lower() == 'list_string'):
-                return value.split(',')
+            elif (_type.lower() == 'string_list' or _type.lower() == 'list_string' or _type.lower() == 'list'):
+                if('[' in str(value)):
+                    try:
+                        return ast.literal_eval(value)
+                    except:
+                        print(error_message(sheet_name,key,_type,value))
+                        sys.exit(1)
+                else:
+                    return value.split(',')
             elif (_type.lower() == 'number' or _type.lower() == 'int'):
                 try:
                     if value:
@@ -140,7 +147,7 @@ def save_json(product_dict,id):
     timestamp = datetime.now().strftime('%Y%m%d-%H%M')
     filename = "./output_json/{}/{}_{}.json".format(timestamp,outline,id)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, 'w') as outfile:
+    with open(filename, 'w', encoding='utf8') as outfile:
         json.dump(product_dict, outfile, indent=4, cls=NpEncoder,ensure_ascii=False)
     print("Saved JSON file at: ",filename)
 
